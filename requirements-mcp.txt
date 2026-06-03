@@ -1,0 +1,7 @@
+# MCP server only — no ML, no audio processing.
+# Install with: pip install -r requirements-mcp.txt
+mcp==1.27.2
+structlog==25.5.0
+requests==2.34.2
+boto3==1.43.22
+pytz==2026.2
