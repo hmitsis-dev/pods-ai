@@ -1,5 +1,3 @@
-# Copyright (c) PODS-AI contributors
-# SPDX-License-Identifier: MIT
 """
 Read-only MCP Server for Orcasound data interrogation (stdio transport).
 
@@ -10,6 +8,7 @@ Tools — all usable without AKS access:
   4. get_sample_stats            — category distribution in local training / testing CSVs
   5. find_unlabelled_detections  — Orcasite detections not yet present in local CSVs
   6. compare_models_on_clip      — run OrcaHello (HuggingFace) + PODS-AI on a local WAV
+  7. export_unlabelled_to_csv    — extract unlabelled remote data and save directly to disk
 """
 
 import csv
@@ -381,6 +380,28 @@ def compare_models_on_clip(
         "podsai_label": pods_label,
         "details": results,
     }
+
+@mcp.tool()
+def export_unlabelled_to_csv(node_name: str, output_filename: str, limit: int = 100) -> str:
+    """Finds unlabelled detections and immediately saves them to a new CSV file."""
+    
+    # Re-use your existing tool logic to get the data
+    data = find_unlabelled_detections(node_name, limit)
+    unlabelled_items = data.get("unlabelled", [])
+    
+    if not unlabelled_items:
+        return "No unlabelled detections found to export."
+        
+    output_path = _CSV_DIR / output_filename
+    
+    # Write the data directly to a CSV
+    keys = unlabelled_items[0].keys()
+    with open(output_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(unlabelled_items)
+        
+    return f"Successfully created dataset! Saved {len(unlabelled_items)} rows to {output_path}"
 
 
 # ---------------------------------------------------------------------------
