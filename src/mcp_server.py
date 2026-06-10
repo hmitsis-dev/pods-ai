@@ -27,7 +27,8 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.JSONRenderer(),
-    ]
+    ],
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
 )
 logger = structlog.get_logger("orcasound_mcp")
 
@@ -298,8 +299,8 @@ def find_unlabelled_detections(
     unlabelled = []
     for det in api_detections:
         # Orcasite playlist_timestamp is the closest proxy to the CSV URI timestamp
-        playlist_ts = det.get("playlist_timestamp") or ""
-        if not any(playlist_ts in uri for uri in known_uris):
+        playlist_ts = str(det.get("playlist_timestamp") or "")
+        if not playlist_ts or not any(playlist_ts in uri for uri in known_uris):
             unlabelled.append(det)
 
     return {
