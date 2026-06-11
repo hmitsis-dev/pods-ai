@@ -26,11 +26,18 @@ from typing import Any, Optional
 import ffmpeg
 from pytz import timezone as pytz_tz
 
+from audio_utils import (
+    download_from_url,
+    get_cached_folders,
+    get_difference_between_times_in_seconds,
+    get_folders_between_timestamp,
+    load_m3u8_with_retry,
+)
 from model_inference import get_model_inference
 
 PODSAI_MODEL_ID = "davethaler/whale-call-detector"
 # renovate: datasource=git-refs depName=https://huggingface.co/davethaler/whale-call-detector versioning=git.
-PODSAI_AST_MODEL_REVISION = "d1eedf5c614268da7551039a84dfc35d317168b9"
+PODSAI_AST_MODEL_REVISION = "db51f75da131de0e53e8080a1f2c5f4b534810aa"
 PODSAI_WAV2VEC2_MODEL_REVISION = "cef82c6e9ee661646ea0c583aeb68f4f7ec6d9d8"
 # Preserve the existing exported constant name for compatibility.
 PODSAI_MODEL_REVISION = PODSAI_AST_MODEL_REVISION
@@ -71,14 +78,6 @@ def download_60s_audio_from_start_utc(
     tmp_dir: str,
 ) -> Optional[str]:
     """Download a 60-second clip beginning at start_time_utc."""
-    from extract_training_samples import (
-        download_from_url,
-        get_cached_folders,
-        get_difference_between_times_in_seconds,
-        get_folders_between_timestamp,
-        load_m3u8_with_retry,
-    )
-
     duration_seconds = 60.0
     end_time_utc = start_time_utc + timedelta(seconds=duration_seconds)
     start_unix_time = int(start_time_utc.timestamp())

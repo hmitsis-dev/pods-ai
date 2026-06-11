@@ -22,7 +22,7 @@ from podsai_inference import NUM_SPECIAL_TOKENS
 # Pinned PODS-AI model revision for integration-test stability.
 PODSAI_TEST_MODEL_ID = "davethaler/whale-call-detector"
 # renovate: datasource=git-refs depName=https://huggingface.co/davethaler/whale-call-detector versioning=git.
-PODSAI_TEST_MODEL_REVISION = "d1eedf5c614268da7551039a84dfc35d317168b9"
+PODSAI_TEST_MODEL_REVISION = "db51f75da131de0e53e8080a1f2c5f4b534810aa"
 
 
 def _resolve_podsai_test_model_path() -> str:
@@ -525,6 +525,24 @@ class TestPodsAIInferenceIndexing:
 
 class TestPodsAIInferenceErrorHandling:
     """Test error handling in PodsAIInference."""
+
+    @patch('podsai_inference.AutoModelForAudioClassification')
+    @patch('podsai_inference.AutoFeatureExtractor')
+    def test_feature_extractor_fails_immediately_on_bad_revision(
+        self, mock_extractor_class, mock_model_class, mock_feature_extractor, mock_podsai_model
+    ):
+        """When a pinned revision fails, the job must fail immediately (no fallback)."""
+        mock_extractor_class.from_pretrained.side_effect = OSError("revision not found")
+        mock_model_class.from_pretrained = Mock(return_value=mock_podsai_model)
+
+        from podsai_inference import PodsAIInference
+
+        with pytest.raises(RuntimeError):
+            PodsAIInference("test-model-path", model_revision="deadbeef")
+
+        assert mock_extractor_class.from_pretrained.call_count == 1
+        assert mock_extractor_class.from_pretrained.call_args.args[0] == "test-model-path"
+        assert mock_extractor_class.from_pretrained.call_args.kwargs.get("revision") == "deadbeef"
     
     @patch('podsai_inference.AutoModelForAudioClassification')
     @patch('podsai_inference.AutoFeatureExtractor')

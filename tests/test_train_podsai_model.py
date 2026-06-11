@@ -510,6 +510,31 @@ def test_whale_f1_computed_from_whale_classes_only(monkeypatch):
     assert metrics["f1_vessel"] == 0.0
 
 
+def test_compute_metrics_prints_dataset_context(monkeypatch, capsys):
+    """compute_metrics should print which evaluation dataset/split is being reported."""
+    module = _import_stubbed_train_module(monkeypatch)
+    _patch_metrics(module)
+    module.ID2LABEL = {
+        0: "water",
+        1: "resident",
+        2: "transient",
+        3: "humpback",
+        4: "vessel",
+        5: "jingle",
+        6: "human",
+    }
+
+    labels = np.array([1, 2, 3, 0, 4, 5, 6])
+    predictions = np.array([1, 2, 3, 0, 4, 5, 6])
+    logits = np.eye(7)[predictions]
+
+    eval_pred = module.EvalPrediction(predictions=logits, label_ids=labels)
+    module.compute_metrics(eval_pred)
+
+    captured = capsys.readouterr().out
+    assert "trainer test split from output/wav (80/20 split of training samples)" in captured
+
+
 def test_whale_f1_reflects_mixed_whale_predictions(monkeypatch):
     """f1 should drop when whale-class predictions include errors."""
     module = _import_stubbed_train_module(monkeypatch)
@@ -568,3 +593,22 @@ def test_f1_fallback_supports_multiclass_non_whale_labels(monkeypatch):
 
     # Symmetric confusion gives per-class F1=0.5 for all classes => weighted F1=0.5.
     assert metrics["f1"] == pytest.approx(0.5)
+
+
+def test_metric_loader_falls_back_to_sklearn_when_evaluate_metric_missing(monkeypatch):
+    """Metric loading should gracefully fall back when evaluate modules are unavailable."""
+    module = _import_stubbed_train_module(monkeypatch)
+
+    def _raise_not_found(_name):
+        raise FileNotFoundError("missing metric module")
+
+    monkeypatch.setattr(module.evaluate, "load", _raise_not_found)
+
+    accuracy_metric = module._load_metric("accuracy")
+    f1_metric = module._load_metric("f1")
+
+    accuracy = accuracy_metric.compute(predictions=[1, 0, 1], references=[1, 1, 1])
+    per_class_f1 = f1_metric.compute(predictions=[0, 1, 1, 0], references=[0, 1, 0, 1], average=None, labels=[0, 1])
+
+    assert accuracy["accuracy"] == pytest.approx(2.0 / 3.0)
+    assert np.allclose(per_class_f1["f1"], np.array([0.5, 0.5]))
