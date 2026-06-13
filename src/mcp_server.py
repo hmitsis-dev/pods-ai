@@ -1,15 +1,16 @@
+# Copyright (c) PODS-AI contributors            
+# SPDX-License-Identifier: MIT
 """
 Read-only MCP Server for Orcasound data interrogation (stdio transport).
-
-Tools — all usable without AKS access:
-  1. list_hydrophones            — active stations from the Orcasite feeds API
-  2. get_recent_detections       — latest sound detections from the Orcasite API
-  3. list_s3_recordings          — available HLS timestamp folders in S3 for a node
-  4. get_sample_stats            — category distribution in local training / testing CSVs
-  5. find_unlabelled_detections  — Orcasite detections not yet present in local CSVs
-  6. compare_models_on_clip      — run OrcaHello (HuggingFace) + PODS-AI on a local WAV
-  7. export_unlabelled_to_csv    — extract unlabelled remote data and save directly to disk
-"""
+Tools — all usable without AKS access:          
+1. list_hydrophones — active stations from the Orcasite feeds API.             
+2. get_recent_detections — latest sound detections from the Orcasite API.                 
+3. list_s3_recordings — available HLS timestamp folders in S3 for a node.               
+4. get_sample_stats — category distribution in local training / testing CSVs.    
+5. find_unlabeled_detections — Orcasite detections not yet present in local CSVs.         
+6. compare_models_on_clip — run OrcaHello (HuggingFace) + PODS-AI on a local WAV.           
+7. export_unlabeled_to_csv — extract unlabeled remote data and save directly to disk.  
+"""                                             
 
 import csv
 import sys
@@ -32,7 +33,7 @@ structlog.configure(
 )
 logger = structlog.get_logger("orcasound_mcp")
 
-# Resolve project layout regardless of working directory
+# Resolve project layout regardless of working directory.
 _SRC_DIR = Path(__file__).parent.absolute()
 _PROJECT_ROOT = _SRC_DIR.parent
 _CSV_DIR = _PROJECT_ROOT / "output" / "csv"
@@ -46,7 +47,7 @@ S3_BUCKET = "audio-orcasound-net"
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers.
 # ---------------------------------------------------------------------------
 
 def _validate_node_name(node_name: str) -> None:
@@ -69,7 +70,7 @@ def _read_csv(path: Path) -> List[Dict[str, str]]:
 
 
 # ---------------------------------------------------------------------------
-# Tool 1 — Hydrophone stations
+# Tool 1 — Hydrophone stations.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -100,7 +101,7 @@ def list_hydrophones() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Tool 2 — Recent detections from Orcasite
+# Tool 2 — Recent detections from Orcasite.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -111,8 +112,7 @@ def get_recent_detections(node_name: str, limit: int = 50) -> List[Dict[str, Any
     category (whale / vessel / other), source (human / machine), and description.
 
     Args:
-        node_name: Hydrophone node identifier, e.g. 'rpi_sunset_bay'.
-                   Also accepts the station slug, e.g. 'sunset-bay'.
+        node_name: Hydrophone node identifier, e.g., 'rpi_sunset_bay'. Also accepts the station slug, e.g., 'sunset-bay'.
         limit: Number of detections to retrieve (1–250, default 50).
     """
     _validate_node_name(node_name)
@@ -158,7 +158,7 @@ def get_recent_detections(node_name: str, limit: int = 50) -> List[Dict[str, Any
 
 
 # ---------------------------------------------------------------------------
-# Tool 3 — S3 recording index
+# Tool 3 — S3 recording index.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -176,8 +176,8 @@ def list_s3_recordings(
       https://s3-us-west-2.amazonaws.com/audio-orcasound-net/<node_name>/hls/<epoch>/live.m3u8
 
     Args:
-        node_name: Hydrophone node identifier, e.g. 'rpi_sunset_bay'.
-        date_prefix: Optional epoch prefix to narrow listing, e.g. '174' for recent 2025 data.
+        node_name: Hydrophone node identifier, e.g., 'rpi_sunset_bay'.
+        date_prefix: Optional epoch prefix to narrow listing, e.g., '174' for recent 2025 data.
         max_results: Maximum number of timestamps to return (1–1000, default 100).
     """
     _validate_node_name(node_name)
@@ -211,7 +211,7 @@ def list_s3_recordings(
 
 
 # ---------------------------------------------------------------------------
-# Tool 4 — Sample stats from local CSVs
+# Tool 4 — Sample stats from local CSVs.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -222,7 +222,7 @@ def get_sample_stats(split: str = "training") -> Dict[str, Any]:
     Use this to spot class imbalances or gaps in hydrophone coverage before training.
 
     Args:
-        split: Which CSV to analyse — 'training' (default) or 'testing'.
+        split: Which CSV to analyze — 'training' (default) or 'testing'.
     """
     if split not in ("training", "testing"):
         raise ValueError("split must be 'training' or 'testing'.")
@@ -232,9 +232,9 @@ def get_sample_stats(split: str = "training") -> Dict[str, Any]:
 
     rows = _read_csv(csv_path)
 
-    # Category counts
+    # Category counts.
     categories: Dict[str, int] = {}
-    # Per-station counts
+    # Per-station counts.
     per_station: Dict[str, Dict[str, int]] = {}
 
     for row in rows:
@@ -259,11 +259,11 @@ def get_sample_stats(split: str = "training") -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Tool 5 — Find unlabelled detections
+# Tool 5 — Find unlabeled detections.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def find_unlabelled_detections(
+def find_unlabeled_detections(
     node_name: str,
     limit: int = 100,
 ) -> Dict[str, Any]:
@@ -273,16 +273,16 @@ def find_unlabelled_detections(
     into the training pipeline yet.
 
     Args:
-        node_name: Hydrophone node identifier, e.g. 'rpi_sunset_bay'.
+        node_name: Hydrophone node identifier, e.g., 'rpi_sunset_bay'.
         limit: How many recent Orcasite detections to fetch for comparison (1–250).
     """
     _validate_node_name(node_name)
     if not 1 <= limit <= 250:
         raise ValueError("limit must be between 1 and 250.")
 
-    logger.info("find_unlabelled_detections", node_name=node_name)
+    logger.info("find_unlabeled_detections", node_name=node_name)
 
-    # Collect all URIs already in local CSVs
+    # Collect all URIs already in local CSVs.
     known_uris: set[str] = set()
     for csv_name in ("detections.csv", "training_samples.csv", "testing_samples.csv"):
         path = _CSV_DIR / csv_name
@@ -292,28 +292,28 @@ def find_unlabelled_detections(
                 if uri:
                     known_uris.add(uri)
 
-    # Fetch recent detections from Orcasite
+    # Fetch recent detections from Orcasite.
     api_detections = get_recent_detections(node_name=node_name, limit=limit)
 
-    # A detection is "unlabelled" if its idempotency_key / playlist URI is not in any local CSV
-    unlabelled = []
+    # A detection is "unlabeled" if its idempotency_key / playlist URI is not in any local CSV.
+    unlabeled = []
     for det in api_detections:
-        # Orcasite playlist_timestamp is the closest proxy to the CSV URI timestamp
+        # Orcasite playlist_timestamp is the closest proxy to the CSV URI timestamp.
         playlist_ts = str(det.get("playlist_timestamp") or "")
         if not playlist_ts or not any(playlist_ts in uri for uri in known_uris):
-            unlabelled.append(det)
+            unlabeled.append(det)
 
     return {
         "node_name": node_name,
         "fetched_from_api": len(api_detections),
-        "already_in_local_csvs": len(api_detections) - len(unlabelled),
-        "unlabelled_count": len(unlabelled),
-        "unlabelled": unlabelled,
+        "already_in_local_csvs": len(api_detections) - len(unlabeled),
+        "unlabeled_count": len(unlabeled),
+        "unlabeled": unlabeled,
     }
 
 
 # ---------------------------------------------------------------------------
-# Tool 6 — Compare OrcaHello vs PODS-AI on a local WAV
+# Tool 6 — Compare OrcaHello vs PODS-AI on a local WAV.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -341,9 +341,6 @@ def compare_models_on_clip(
     podsai_model_path = podsai_model_path or "davethaler/whale-call-detector"
     logger.info("compare_models_on_clip", wav=wav_path, podsai_model=podsai_model_path)
 
-    # Lazy import — heavy ML deps only loaded when this tool is actually called
-    from model_inference import get_model_inference
-
     results: Dict[str, Any] = {}
 
     for model_key, model_type, model_path in [
@@ -351,6 +348,9 @@ def compare_models_on_clip(
         ("podsai", "podsai", podsai_model_path),
     ]:
         try:
+            # Lazy import — heavy ML deps only loaded when this tool is actually called.
+            # Import inside the try/except so missing optional deps don't crash the entire tool.
+            from model_inference import get_model_inference
             model = get_model_inference(
                 model_type=model_type,
                 model_path=model_path,
@@ -369,7 +369,7 @@ def compare_models_on_clip(
             logger.warning("model_inference_failed", model=model_key, error=str(exc))
             results[model_key] = {"error": str(exc)}
 
-    # Agreement flag — both models must succeed and agree on the top-level label
+    # Agreement flag — both models must succeed and agree on the top-level label.
     orca_label = results.get("orcahello", {}).get("global_prediction_label")
     pods_label = results.get("podsai", {}).get("global_prediction_label")
     agree = (orca_label is not None and orca_label == pods_label)
@@ -383,30 +383,57 @@ def compare_models_on_clip(
     }
 
 @mcp.tool()
-def export_unlabelled_to_csv(node_name: str, output_filename: str, limit: int = 100) -> str:
-    """Finds unlabelled detections and immediately saves them to a new CSV file."""
-    
-    # Re-use your existing tool logic to get the data
-    data = find_unlabelled_detections(node_name, limit)
-    unlabelled_items = data.get("unlabelled", [])
-    
-    if not unlabelled_items:
-        return "No unlabelled detections found to export."
-        
+def export_unlabeled_to_csv(
+    node_name: str,
+    output_filename: str,
+    limit: int = 100,
+) -> str:
+    """Find unlabeled detections for a station and save them to a new CSV file.
+
+    Args:
+        node_name: Hydrophone node identifier, e.g., 'rpi_sunset_bay'.
+        output_filename: A simple filename (e.g., 'sunset_bay.csv') in output/csv/.
+        limit: How many recent Orcasite detections to fetch for comparison (1–250).
+    """
+    _validate_node_name(node_name)
+    if not 1 <= limit <= 250:
+        raise ValueError("limit must be between 1 and 250.")
+
+    # Validate the output filename to prevent directory traversal.
+    filename_path = Path(output_filename)
+    if (
+        filename_path.name != output_filename
+        or ".." in output_filename
+        or not output_filename.lower().endswith(".csv")
+    ):
+        raise ValueError(
+            "output_filename must be a simple filename ending in '.csv' "
+            "without any directory or path components."
+        )
+
+    # Re-use existing tool logic to get the data.
+    data = find_unlabeled_detections(node_name, limit)
+    unlabeled_items = data.get("unlabeled", [])
+
+    if not unlabeled_items:
+        return "No unlabeled detections found to export."
+
+    # Ensure the destination directory exists.
+    _CSV_DIR.mkdir(parents=True, exist_ok=True)
     output_path = _CSV_DIR / output_filename
-    
-    # Write the data directly to a CSV
-    keys = unlabelled_items[0].keys()
-    with open(output_path, 'w', newline='', encoding='utf-8') as f:
+
+    # Write the data directly to a CSV.
+    keys = unlabeled_items[0].keys()
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=keys)
         writer.writeheader()
-        writer.writerows(unlabelled_items)
-        
-    return f"Successfully created dataset! Saved {len(unlabelled_items)} rows to {output_path}"
+        writer.writerows(unlabeled_items)
+
+    return f"Successfully created dataset! Saved {len(unlabeled_items)} rows to {output_path}"
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Entry point.
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":

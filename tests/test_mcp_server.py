@@ -1,45 +1,54 @@
+# Copyright (c) PODS-AI contributors
+# SPDX-License-Identifier: MIT
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-# Mock dependencies BEFORE importing mcp_server
-class MockFastMCP:
-    def __init__(self, name):
-        self.name = name
-        self.tools = {}
+# Try to import mcp to see if it is installed.
+try:
+    import mcp
+    import mcp.server.fastmcp
+except (ImportError, ModuleNotFoundError):
+    # Mock dependencies if they cannot be genuinely imported.
+    class MockFastMCP:
+        def __init__(self, name):
+            self.name = name
+            self.tools = {}
 
-    def tool(self):
-        def decorator(func):
-            self.tools[func.__name__] = func
-            return func
-        return decorator
+        def tool(self):
+            def decorator(func):
+                self.tools[func.__name__] = func
+                return func
+            return decorator
 
-    def run(self):
-        pass
+        def run(self):
+            pass
 
-mock_mcp_module = MagicMock()
-mock_mcp_module.server.fastmcp.FastMCP = MockFastMCP
-sys.modules["mcp"] = mock_mcp_module
-sys.modules["mcp.server"] = mock_mcp_module.server
-sys.modules["mcp.server.fastmcp"] = mock_mcp_module.server.fastmcp
+    mock_mcp_module = MagicMock()
+    mock_mcp_module.server.fastmcp.FastMCP = MockFastMCP
+    sys.modules["mcp"] = mock_mcp_module
+    sys.modules["mcp.server"] = mock_mcp_module.server
+    sys.modules["mcp.server.fastmcp"] = mock_mcp_module.server.fastmcp
 
-# Mock other deps if missing
+# Mock other optional dependencies only if they cannot be genuinely imported.
 for dep in [
     "boto3", "botocore", "botocore.config", "structlog", "pytz",
     "torch", "pandas", "pydub", "librosa", "torchaudio", "numpy", "fastai",
     "fastai.basic_train", "audio", "audio.data"
 ]:
-    if dep not in sys.modules:
+    try:
+        __import__(dep)
+    except Exception:
         sys.modules[dep] = MagicMock()
 
-# Now import the code to be tested
+# Now import the code to be tested.
 from mcp_server import (
     _validate_node_name,
     list_hydrophones,
     get_recent_detections,
     list_s3_recordings,
     get_sample_stats,
-    find_unlabelled_detections,
+    find_unlabeled_detections,
 )
 from orcasite_feeds import OrcasiteFeed
 
@@ -158,7 +167,7 @@ class TestMCPServer(unittest.TestCase):
     @patch("mcp_server._read_csv")
     @patch("mcp_server.Path.exists")
     @patch("mcp_server.get_recent_detections")
-    def test_find_unlabelled_detections(self, mock_get_det, mock_exists, mock_read):
+    def test_find_unlabeled_detections(self, mock_get_det, mock_exists, mock_read):
         mock_exists.return_value = True
         mock_read.return_value = [
             {"URI": "s3://bucket/node/hls/1700000000/live000.ts"}
@@ -177,9 +186,9 @@ class TestMCPServer(unittest.TestCase):
             }
         ]
         
-        result = find_unlabelled_detections("node_1")
-        self.assertEqual(result["unlabelled_count"], 1)
-        self.assertEqual(result["unlabelled"][0]["id"], "det_new")
+        result = find_unlabeled_detections("node_1")
+        self.assertEqual(result["unlabeled_count"], 1)
+        self.assertEqual(result["unlabeled"][0]["id"], "det_new")
 
     @patch("model_inference.get_model_inference")
     @patch("mcp_server.Path.exists")
@@ -208,22 +217,45 @@ class TestMCPServer(unittest.TestCase):
         self.assertEqual(result["podsai_label"], "resident")
         self.assertTrue(result["models_agree"])
 
-    @patch("mcp_server.find_unlabelled_detections")
+    @patch("mcp_server.find_unlabeled_detections")
     @patch("builtins.open", new_callable=unittest.mock.mock_open)
     @patch("mcp_server.csv.DictWriter")
-    def test_export_unlabelled_to_csv(self, mock_writer, mock_open, mock_find):
+    def test_export_unlabeled_to_csv(self, mock_writer, mock_open, mock_find):
         mock_find.return_value = {
-            "unlabelled": [
+            "unlabeled": [
                 {"id": "det_1", "category": "whale"}
             ]
         }
         
-        from mcp_server import export_unlabelled_to_csv
-        result = export_unlabelled_to_csv("node_1", "test.csv")
+        from mcp_server import export_unlabeled_to_csv
+        result = export_unlabeled_to_csv("node_1", "test.csv")
         
         self.assertIn("Successfully created dataset", result)
         mock_open.assert_called_once()
         mock_writer.assert_called_once()
+
+    def test_export_unlabeled_to_csv_invalid_inputs(self):
+        from mcp_server import export_unlabeled_to_csv
+
+        # Invalid node name.
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("invalid station!", "test.csv")
+
+        # Invalid limit.
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "test.csv", limit=0)
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "test.csv", limit=300)
+
+        # Path traversal and invalid filenames.
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "../test.csv")
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "subdir/test.csv")
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "test.txt")
+        with self.assertRaises(ValueError):
+            export_unlabeled_to_csv("node_1", "")
 
 if __name__ == "__main__":
     unittest.main()

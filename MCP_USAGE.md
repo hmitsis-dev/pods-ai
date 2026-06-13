@@ -5,10 +5,13 @@ This server lets you use AI (like Claude) to explore Orcasound data. It helps yo
 ## Requirements
 
 To run this server, you need:
-*   **Python 3.10+**: The core language.
+*   **Python 3.11+**: The core language (matches CI).
 *   **Node.js**: Needed to run the "Inspector" or to connect to some AI clients.
 *   **uv** (Recommended): For fast and clean setup.
 *   **An AI Client**: Like Claude Desktop, Gemini, or VS Code (with an MCP plugin).
+
+> [!NOTE]
+> The base `requirements-mcp.txt` installs a minimal set of dependencies for basic data interrogation. Running the model comparison tool (`compare_models_on_clip`) requires the full ML/audio dependencies from the main `requirements.txt`.
 
 ## How it works
 
@@ -22,13 +25,19 @@ Because the tool names (like `get_recent_detections`) and their instructions are
 
 We use `uv` because it's the fastest way to set everything up.
 
-1. **Install uv**: ( For Unix)
+1. **Install uv**:
+   For Unix:
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    export PATH="$HOME/.local/bin:$PATH"
    ```
 
-2. **Setup the tools**:
+   For Windows:
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+2. **Set up the tools**:
    ```bash
    uv venv .venv
    source .venv/bin/activate
@@ -48,7 +57,7 @@ We use `uv` because it's the fastest way to set everything up.
 
 ## Real Example: Finding new data
 
-Here is exactly how this helps research. I asked an AI: 
+Here is exactly how this helps research. I asked an AI ( Gemini-cli): 
 > *"Is there any new whale data at Sunset Bay we haven't trained on yet?"*
 
 **The AI did the following automatically:**
@@ -56,7 +65,7 @@ Here is exactly how this helps research. I asked an AI:
 2. Checked the latest detections from the live website.
 3. Compared them to our local training files.
 4. Found **31 new whale calls** that were missing!
-5. Exported them to `unlabelled_sunset_bay.csv` so I could start using them.
+5. Exported them to `unlabeled_sunset_bay.csv` so I could start using them.
 
 **Example of the generated data:**
 ```csv
@@ -68,7 +77,7 @@ det_032rv284XNvcWjwk6O8VKc,2026-04-01T06:42:30.000000Z,machine,whale,Transient c
 det_032rcOgki2tf0KtWxR3Vu4,2026-03-31T18:04:00.000000Z,human,whale,,39821.773909,1774940418
 ```
 
-**Total time:** 15 seconds. (Doing this manually would take more and we would need to do more than one different scripts and SQL queries).
+**Total time:** 15 seconds. (Doing this manually would take more and we would need to run more than one different scripts and SQL queries).
 
 ---
 
@@ -80,10 +89,10 @@ To use these tools inside Claude, add this to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "orcasound": {
-      "command": "/home/mitcha/repos/pods-ai/.venv/bin/python",
-      "args": ["/home/mitcha/repos/pods-ai/src/mcp_server.py"],
+      "command": "/absolute/path/to/pods-ai/.venv/bin/python",
+      "args": ["/absolute/path/to/pods-ai/src/mcp_server.py"],
       "env": {
-        "PYTHONPATH": "/home/mitcha/repos/pods-ai/src"
+        "PYTHONPATH": "/absolute/path/to/pods-ai/src"
       }
     }
   }
